@@ -9,7 +9,7 @@ public class TimeCounter
 
     [SerializeField][Range(0, 5)] float targetTime;
 
-    public bool IsFinished => elapsedTime >= targetTime;
+    public bool IsFinished => ElapsedTime >= targetTime;
 
     public TimeCounter(float target)
     {
