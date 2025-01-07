@@ -18,7 +18,6 @@ public class OffsetConstant : LConstant<GameObject>
     public override LContext Apply(LContext context)
     {
         context.rotation = context.rotation * Rotation;
-        var euler = context.rotation.eulerAngles;
         context.position += context.rotation * offset;
 
         return context;
