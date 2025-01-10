@@ -121,80 +121,54 @@ public static class LeafGeometry
 
 		Stack<LContext> contexts = new Stack<LContext>();
 
-		//Petiole
 		vertices.Add(new Vector3(-0.5f * dna.petioleWidth, 0, 0));
 		vertices.Add(new Vector3(-0.5f * dna.petioleWidth, 0, dna.petioleLength));
 
-		var start = new Vector3(-dna.petioleWidth * 0.5f, 0, dna.petioleLength);
-		var end = start + new Vector3(-dna.lowMidribWidth * 0.5f, 0, dna.petioleLength + dna.lowMidribLength);
-		var angleStep = 180f / dna.lowTipCount;
-		var minAngle = 0f;
-		if (dna.lowTipCount > 0)
+		var lowTipStart = new Vector3(-dna.petioleWidth * 0.5f, 0, dna.petioleLength);
+		var lowTipEnd = lowTipStart + new Vector3(-dna.lowMidribWidth * 0.5f, 0, dna.lowMidribLength);
+
+		vertices.AddRange(GetTips(dna.lowTipCount, dna.lowTipLength, lowTipStart, lowTipEnd, dna.lowTipAngle));
+		vertices.Add(lowTipEnd);
+
+		Vector3 highTipStart = lowTipEnd;
+		Vector3 highTipEnd;
+		bool pointy = dna.highTipCount % 2 == 1;
+		int highTipCount = pointy ? (dna.highTipCount - 1) / 2 : dna.highTipCount / 2;
+		if (pointy)
 		{
-			//low midrib
-			//midrib
-
-			var lowMidribContext = new LContext
-			{
-				position = (start + end) * 0.5f,
-				rotation = Quaternion.LookRotation(-(end - start).normalized, Vector3.down)
-			};
-
-			contexts.Push(lowMidribContext);
-
-			var cornerLength = (end - start).magnitude * 0.25f;
-
-			var lowAngleTipStep = 180 / dna.lowTipCount;
-			var lowAngleCornerStep = lowAngleTipStep * 0.5f;
-
-			for (int i = 0; i < dna.lowTipCount; i++)
-			{
-				var currentContext = contexts.Pop();
-				//Tips
-				var angle = lowAngleTipStep * 0.5f + i * lowAngleTipStep;
-				var rotation = Quaternion.Euler(0, -angle - dna.lowTipAngle, 0);
-				var vertex = (rotation * new Vector3(0, 0, cornerLength + dna.lowTipLength));
-				vertex = currentContext * vertex;
-				vertices.Add(vertex);
-
-				//Corners
-				angle += lowAngleTipStep * 0.5f;
-				rotation = Quaternion.Euler(0, -angle, 0);
-				vertex = (rotation * new Vector3(0, 0, cornerLength));
-				vertex = currentContext * vertex;
-
-				if (i != dna.lowTipCount - 1)
-					vertices.Add(vertex);
-				contexts.Push(currentContext);
-			}
+			highTipEnd = new Vector3(-dna.highMidribWidth * 0.5f, 0, dna.highMidribLength + dna.lowMidribLength + dna.petioleLength);
+		}
+		else
+		{
+			highTipEnd = new Vector3(0, 0, dna.highMidribLength + dna.lowMidribLength + dna.petioleLength);
 		}
 
-		vertices.Add(end);
+		vertices.AddRange(GetTips(highTipCount, dna.highTipLength, highTipStart, highTipEnd, dna.highTipAngle));
+		vertices.Add(highTipEnd);
 
-		//midrib
-		angleStep = dna.highTipSpread / dna.highTipCount;
-		minAngle = -dna.highTipSpread * 0.5f;
-		for (int i = 0; i < dna.highTipCount; i++)
+		Vector3 rightHighTipEnd = lowTipEnd;
+		rightHighTipEnd.x *= -1;
+
+		Vector3 rightHighTipStart;
+		if (pointy)
 		{
-			var growOffset = (dna.petioleLength + dna.lowMidribLength) * Vector3.forward;
+			var pointyStart = highTipEnd;
+			var pointyEnd = pointyStart + new Vector3(dna.highMidribWidth, 0, 0);
+			rightHighTipStart = pointyEnd;
 
-			//Corners
-			var angle = minAngle + i * angleStep;
-			var rotation = Quaternion.Euler(0, angle, 0);
-
-			if (i != 0)
-			{
-				vertices.Add((dna.petioleLength + dna.lowMidribLength) * Vector3.forward + rotation * new Vector3(0, 0, dna.highMidribLength));
-			}
-
-			//Tips
-			angle = minAngle + i * angleStep + angleStep * 0.5f;
-			rotation = Quaternion.Euler(0, angle, 0);
-			vertices.Add((dna.petioleLength + dna.lowMidribLength) * Vector3.forward + rotation * new Vector3(0, 0, dna.highMidribLength + dna.highTipLength));
+			vertices.Add(pointyStart);
+			vertices.AddRange(GetTips(1, dna.highTipLength, pointyStart, pointyEnd, 0));
+			vertices.Add(pointyEnd);
 		}
-		//Last corner
-		var lastRotation = Quaternion.Euler(0, dna.highTipSpread * 0.5f, 0);
-		vertices.Add((dna.petioleLength + dna.lowMidribLength) * Vector3.forward + lastRotation * new Vector3(0, 0, dna.highMidribLength));
+		else
+		{
+			rightHighTipStart = highTipEnd;
+		}
+
+		vertices.AddRange(GetTips(highTipCount, dna.highTipLength, rightHighTipStart, rightHighTipEnd, -dna.highTipAngle));
+		vertices.Add(rightHighTipEnd);
+
+		vertices.AddRange(GetTips(dna.lowTipCount, dna.lowTipLength, rightHighTipEnd, new Vector3(0.5f * dna.petioleWidth, 0, dna.petioleLength), -dna.lowTipAngle));
 
 		vertices.Add(new Vector3(0.5f * dna.petioleWidth, 0, dna.petioleLength));
 		vertices.Add(new Vector3(0.5f * dna.petioleWidth, 0, 0));
@@ -203,6 +177,66 @@ public static class LeafGeometry
 		mesh.vertices = vertices.ToArray();
 
 		return mesh;
+	}
+
+	private static List<Vector3> GetTips(int tips, float tipLength, Vector3 start, Vector3 end, float angleOffset)
+	{
+		if (tips < 1)
+			return new List<Vector3>();
+
+		Stack<LContext> contexts = new Stack<LContext>();
+		var lowMidribContext = new LContext
+		{
+			position = (start + end) * 0.5f,
+			rotation = Quaternion.LookRotation(-(end - start).normalized, Vector3.down)
+		};
+
+		contexts.Push(lowMidribContext);
+
+		List<Vector3> vertices = new();
+
+		var cornerLength = (end - start).magnitude * 0.25f;
+
+		var tipStep = 180 / tips;
+
+		for (int i = 0; i < tips; i++)
+		{
+			var currentContext = contexts.Pop();
+			//Tips
+			var angle = tipStep * 0.5f + i * tipStep;
+			var rotation = Quaternion.Euler(0, -angle - angleOffset, 0);
+			var vertex = (rotation * new Vector3(0, 0, cornerLength + tipLength));
+			vertex = currentContext * vertex;
+			vertices.Add(vertex);
+
+			//Corners
+			angle += tipStep * 0.5f;
+			rotation = Quaternion.Euler(0, -angle, 0);
+			vertex = (rotation * new Vector3(0, 0, cornerLength));
+			vertex = currentContext * vertex;
+
+			if (i != tips - 1)
+				vertices.Add(vertex);
+			contexts.Push(currentContext);
+		}
+
+		return vertices;
+	}
+
+	public static Mesh GetLeaf2(LeafDNA2 dna)
+	{
+		List<Vector3> vertices = new List<Vector3>();
+
+		float widthFactor = dna.width / dna.TotalWeight;
+		float heigthFactor = dna.height / dna.TotalWeight;
+
+		//Petiole
+		vertices.Add(new Vector3(-dna.petioleWidth * widthFactor * 0.5f, 0, 0));
+		vertices.Add(new Vector3(-dna.petioleWidth * widthFactor * 0.5f, 0, dna.petioleHeight ));
+
+
+
+		return null;
 	}
 
 	public static Mesh GetPolygon(int sides, float radius, Vector3 position, Vector3 euler)
