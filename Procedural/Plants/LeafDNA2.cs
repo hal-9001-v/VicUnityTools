@@ -4,59 +4,56 @@ using UnityEngine;
 [Serializable]
 public struct LeafDNA2
 {
-	[Header("Body")]
-	[Range(0, 10)] public float height;
-	[Range(0, 10)] public float width;
+    [Header("Body")]
+    [Range(0, 10)] public float height;
 
-	[Header("Petiole")]
-	[Range(0, 10)] public int petioleHeight;
-	[Range(0, 10)] public int petioleWidth;
+    [Range(0, 10)] public float width;
 
-	[Header("Midrib")]
-	[Range(0, 10)] public int midribHeight;
-	[Range(0, 10)] public int midribWidth;
+    [Header("Petiole")]
+    [Range(0, 1)] public float partialPetioleHeight;
 
-	public LeafBlade firstBlade;
-	public LeafBlade secondBlade;
-	public LeafBlade thirdBlade;
+    [Range(0, 1)] public float partialPetioleWidth;
 
-	public int TotalWidthWeight
-	{
-		get
-		{
-			int sum = 0;
-			sum += petioleWidth;
-			sum += midribWidth;
+    public float PetioleHeight => partialPetioleHeight * height;
+    public float PetioleWidth => partialPetioleWidth * width;
 
-			return sum;
-		}
-	}
+    [Header("Midrib")]
+    [Range(0, 1)] public float partialMidribHeight;
 
-	public int TotalHeightWeight
-	{
-		get
-		{
-			int sum = 0;
-			sum += petioleHeight;
-			sum += midribHeight;
+    [Range(0, 1)] public float partialMidribWidth;
+    public float MidribHeight => partialMidribHeight * height;
+    public float MidribWidth => partialMidribWidth * width;
 
-			return sum;
-		}
-	}
+    public float TotalBladeWidth => firstBlade.firstSectionWidth + secondBlade.firstSectionWidth + thirdBlade.firstSectionWidth;
 
+    public LeafBlade firstBlade;
 
-	[Serializable]
-	public struct LeafBlade
-	{
-		public int width;
-		public int height;
+    public float FirstBladeWidth => firstBlade.firstSectionWidth / TotalBladeWidth * MidribHeight;
 
-		public int firstSectionWidth;
-		public int secondSectionWidth;
-		public int thirdSectionWidth;
+    public LeafBlade secondBlade;
+    public float SecondBladeWidth => secondBlade.firstSectionWidth / TotalBladeWidth * MidribHeight;
 
-		public int TotalWeight => firstSectionWidth + secondSectionWidth + thirdSectionWidth;
-	}
+    public LeafBlade thirdBlade;
+    public float ThirdBladeWidth => thirdBlade.firstSectionWidth / TotalBladeWidth * MidribHeight;
 
+    [Range(0, 5)] public int Smooth;
 
+    public bool fixComplex;
+
+    [Range(0, 10)] public int optiCount;
+
+    [Serializable]
+    public struct LeafBlade
+    {
+        [Range(0, 1)] public float firstSectionWidth;
+        [Range(0, 1)] public float firstSectionHeight;
+
+        [Range(0, 1)] public float secondSectionWidth;
+        [Range(0, 1)] public float secondSectionHeight;
+
+        [Range(0, 1)] public float thirdSectionWidth;
+        [Range(0, 1)] public float thirdSectionHeight;
+
+        [Range(-45, 45)] public float angle;
+    }
 }

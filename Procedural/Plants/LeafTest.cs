@@ -3,39 +3,50 @@ using UnityEngine;
 
 public class LeafTest : MonoBehaviour
 {
-	[SerializeField]
-	private LeafDNA dna;
+    [SerializeField]
+    private LeafDNA2 dna;
 
-	[SerializeField]
-	private AnimationCurve segmentationCurve;
+    [SerializeField]
+    private bool renderIndex;
 
-	[SerializeField]
-	private AnimationCurve verticalSegmentationCurve;
+    private MeshFilter MeshFilter => GetComponent<MeshFilter>();
 
-	private MeshFilter MeshFilter => GetComponent<MeshFilter>();
+    public MeshRenderer greenOne;
 
-	// Start is called once before the first execution of Update after the MonoBehaviour is created
-	private void Start()
-	{
-	}
+    public float updatesPerSecond = 1;
+    private float elapsed = 0;
 
-	// Update is called once per frame
-	private void Update()
-	{
-		MeshFilter.sharedMesh = LeafGeometry.GetLeaf(dna);
-	}
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    private void Awake()
+    {
+        MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
+        var texture = LeafGeometry.GetTexture(new System.Collections.Generic.List<Vector3>(), 100, 100, 128);
+        propertyBlock.SetTexture("_AlphaCut", texture);
 
-	private void OnDrawGizmos()
-	{
+        greenOne.SetPropertyBlock(propertyBlock);
+    }
 
-		Gizmos.color = Color.blue;
-		Gizmos.DrawLine(transform.position, Vector3.forward * 1000);
+    // Update is called once per frame
+    private void Update()
+    {
+        elapsed += Time.deltaTime;
+        if (elapsed < 1f / updatesPerSecond) return;
+        elapsed = 0;
+        MeshFilter.sharedMesh = LeafGeometry.GetLeaf2(dna);
+    }
 
-		Gizmos.color = Color.green;
-		for (int i = 0; i < MeshFilter.sharedMesh.vertices.Length; i++)
-		{
-			Handles.Label(MeshFilter.sharedMesh.vertices[i], i.ToString());
-			Gizmos.DrawLine(MeshFilter.sharedMesh.vertices[i], MeshFilter.sharedMesh.vertices[(i + 1) % MeshFilter.sharedMesh.vertexCount]);
-		}
-	}
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.blue;
+        Gizmos.DrawLine(transform.position, Vector3.forward * 1000);
+
+        Gizmos.color = Color.green;
+        if (MeshFilter.sharedMesh != null)
+            for (int i = 0; i < MeshFilter.sharedMesh.vertices.Length; i++)
+            {
+                if (renderIndex)
+                    Handles.Label(MeshFilter.sharedMesh.vertices[i], i.ToString() + ": " + MeshFilter.sharedMesh.vertices[i].ToString());
+                Gizmos.DrawLine(MeshFilter.sharedMesh.vertices[i], MeshFilter.sharedMesh.vertices[(i + 1) % MeshFilter.sharedMesh.vertexCount]);
+            }
+    }
 }
