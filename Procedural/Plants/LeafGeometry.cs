@@ -222,7 +222,7 @@ public static class LeafGeometry
         return vertices;
     }
 
-    public static Mesh GetLeaf2(LeafDNA2 dna)
+    public static Vector3[] GetLeafPolygon(LeafDNA2 dna)
     {
         List<Vector3> vertices = new List<Vector3>
         {
@@ -253,10 +253,57 @@ public static class LeafGeometry
         MirrorVertices(vertices);
         vertices = SmoothPolygon(vertices, dna.Smooth);
 
-        Mesh mesh = new Mesh();
-        mesh.vertices = vertices.ToArray();
+        return vertices.ToArray();
+    }
 
-        return mesh;
+    public static void GetLeaves(LeafDNA2 dna, Vector3[] positions, Vector3[] eulers, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
+    {
+        var polygon = GetLeafPolygon(dna);
+        var quadVertices = new Vector3[] {
+            new Vector3(-0.5f, 0,0),
+            new Vector3(-0.5f, 0,1),
+            new Vector3(0.5f, 0,1),
+            new Vector3(0.5f, 0,0),
+
+        };
+        var quadUVs = new Vector2[] {
+            new Vector2(0,1),
+            new Vector2(0,0),
+            new Vector2(1,0),
+            new Vector2(1,1)
+        };
+        var quadTriangles = new int[] {
+            2,1,0,
+            2,0,3
+        };
+
+
+        List<Vector3> verticesList = new();
+        List<int> triangleList = new();
+        List<Vector2> uvList = new();
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var context = new LContext() { position = positions[i], rotation = Quaternion.Euler(eulers[i]) };
+
+            int offset = verticesList.Count;
+            for (int j = 0; j < quadVertices.Length; j++)
+            {
+                verticesList.Add(context * quadVertices[j]);
+
+            }
+            uvList.AddRange(quadUVs);
+
+            for (int j = 0; j < quadTriangles.Length; j++)
+            {
+                triangleList.Add(quadTriangles[j] + offset);
+            }
+
+        }
+
+        vertices = verticesList.ToArray();
+        triangles = triangleList.ToArray();
+        uvs = uvList.ToArray();
     }
 
     private static void MakeSimplePolygon(List<Vector3> points, int opticount)
@@ -305,27 +352,94 @@ public static class LeafGeometry
         }
     }
 
-    public static Texture2D GetTexture(List<Vector3> points, float width, float height, int textureSize)
+    public static Texture2D GetTexture(List<Vector3> points, int textureSize, Color32 inside, Color32 outside, Vector3 offsetA)
     {
         Texture2D texture = new Texture2D(textureSize, textureSize);
-        var snappedPoints = new List<Vector3>(points);
+        var snappedPoints = new List<Vector3Int>();
 
-        for (int i = 0; i < snappedPoints.Count; i++)
+        float minX = points.Min(p => p.x);
+        float maxX = points.Max(p => p.x);
+        float minZ = points.Min(p => p.z);
+        float maxZ = points.Max(p => p.z);
+
+        float scale = 0;
+        if (maxX > maxZ)
+        {
+            scale = textureSize / (maxX - minX);
+        }
+        else
+        {
+            scale = textureSize / (maxZ - minZ);
+        }
+
+        for (int i = 0; i < points.Count; i++)
         {
             //Snapp into int values
-            snappedPoints[i] = new Vector3(
-                (int)Math.Round(snappedPoints[i].x),
-                (int)Math.Round(snappedPoints[i].y),
-                (int)Math.Round(snappedPoints[i].z));
+            snappedPoints.Add(new Vector3Int(
+                Mathf.RoundToInt((points[i].x) * scale) + textureSize / 2,
+                Mathf.RoundToInt(points[i].y),
+                Mathf.RoundToInt((points[i].z) * scale)));
         }
 
+        int insideCount = 0;
+        int outsideCount = 0;
+
+        List<Vector3> intersections = new();
         for (int i = 0; i < textureSize; i++)
         {
-            for (int j = 0; j < textureSize; j++)
+            Vector3Int a = new Vector3Int(0, 0, i);
+            Vector3Int b = new Vector3Int(textureSize, 0, i);
+
+            for (int j = 0; j < points.Count - 1; j++)
             {
-                texture.SetPixel(i, j, new Color32(0, 255, 0, 255));
+                if (DoesIntersect(a, b, snappedPoints[j], snappedPoints[j + 1]))
+                {
+                    intersections.Add(GetIntersectingPoint(a, b, snappedPoints[j], snappedPoints[j + 1]));
+                }
+            }
+
+            int pixel = 0;
+
+            intersections = intersections.OrderBy(i => i.x).ToList();
+
+            while (intersections.Count != 0)
+            {
+                var intersection = intersections.First();
+                intersections.RemoveAt(0);
+
+                bool isInside = intersections.Count % 2 == 0;
+
+                while (pixel < intersection.x)
+                {
+                    if (isInside)
+                    {
+                        texture.SetPixel(pixel, i, inside);
+                        insideCount++;
+                    }
+                    else
+                    {
+                        texture.SetPixel(pixel, i, outside);
+                        outsideCount++;
+                    }
+                    pixel++;
+                }
+            }
+
+            while (pixel < textureSize)
+            {
+                texture.SetPixel(pixel, i, outside);
+                outsideCount++;
+                pixel++;
             }
         }
+
+
+
+        Debug.Log("Inside: " + insideCount + " Outside: " + outsideCount);
+
+        var diff = textureSize * textureSize - insideCount - outsideCount;
+        if (diff != 0)
+            Debug.LogWarning("Oppsie, no encajan los pixeles por " + (-diff));
 
         texture.Apply();
         return texture;
@@ -357,6 +471,26 @@ public static class LeafGeometry
         if (o1 == o2) return false;
 
         return true;
+    }
+
+    public static Vector3 GetIntersectingPoint(Vector3 p1, Vector3 p2, Vector3 q1, Vector3 q2)
+    {
+        float a1 = p2.z - p1.z;
+        float b1 = p1.x - p2.x;
+        float c1 = a1 * p1.x + b1 * p1.z;
+
+        float a2 = q2.z - q1.z;
+        float b2 = q1.x - q2.x;
+        float c2 = a2 * q1.x + b2 * q1.z;
+
+        float det = a1 * b2 - a2 * b1;
+
+        {
+            float x = (b2 * c1 - b1 * c2) / det;
+            float z = (a1 * c2 - a2 * c1) / det;
+
+            return new Vector3(x, 0, z);
+        }
     }
 
     public static Vector3 GetClosestPointFromSegment(Vector3 p, Vector3 a, Vector3 b)
