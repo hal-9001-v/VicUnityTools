@@ -264,19 +264,17 @@ public static class LeafGeometry
             new Vector3(-0.5f, 0,1),
             new Vector3(0.5f, 0,1),
             new Vector3(0.5f, 0,0),
-
         };
         var quadUVs = new Vector2[] {
-            new Vector2(0,1),
             new Vector2(0,0),
-            new Vector2(1,0),
-            new Vector2(1,1)
+            new Vector2(0,1),
+            new Vector2(1,1),
+            new Vector2(1,0)
         };
         var quadTriangles = new int[] {
-            2,1,0,
-            2,0,3
+            0,1,2,
+            3,0,2
         };
-
 
         List<Vector3> verticesList = new();
         List<int> triangleList = new();
@@ -290,7 +288,6 @@ public static class LeafGeometry
             for (int j = 0; j < quadVertices.Length; j++)
             {
                 verticesList.Add(context * quadVertices[j]);
-
             }
             uvList.AddRange(quadUVs);
 
@@ -298,12 +295,63 @@ public static class LeafGeometry
             {
                 triangleList.Add(quadTriangles[j] + offset);
             }
-
         }
 
         vertices = verticesList.ToArray();
         triangles = triangleList.ToArray();
         uvs = uvList.ToArray();
+    }
+
+    public static Mesh GetLeavesMesh(LeafDNA2 dna, Vector3[] positions, Vector3[] eulers, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
+    {
+        GetLeaves(dna, positions, eulers, out var vertices, out var triangles, out var uvs);
+
+        Mesh mesh = new Mesh();
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.uv = uvs;
+
+        var texture = GetTexture(new List<Vector3>(GetLeafPolygon(dna)), textureSize);
+
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
+
+        return mesh;
+    }
+
+    public static void GetFlowerPetals(LeafDNA2 dna, int petalCount, float separation, Vector3 position, Vector3 euler, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
+    {
+        List<Vector3> positions = new List<Vector3>();
+        List<Vector3> eulers = new List<Vector3>();
+
+        for (int i = 0; i < petalCount; i++)
+        {
+            var petalEuler = Vector3.up * 360 / petalCount * i;
+            Quaternion rotation = Quaternion.Euler(petalEuler);
+            var petalPosition = position + rotation * Vector3.forward * separation;
+
+            positions.Add(petalPosition);
+            eulers.Add(petalEuler);
+        }
+
+        GetLeaves(dna, positions.ToArray(), eulers.ToArray(), out vertices, out triangles, out uvs);
+    }
+
+    public static Mesh GetFlowerPetalsMesh(LeafDNA2 dna, int petalCount, float separation, Vector3 position, Vector3 euler, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
+    {
+        GetFlowerPetals(dna, petalCount, separation, position, euler, out var vertices, out var triangles, out var uvs);
+
+        Mesh mesh = new Mesh();
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.uv = uvs;
+
+        var texture = GetTexture(new List<Vector3>(GetLeafPolygon(dna)), textureSize);
+
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
+
+        return mesh;
     }
 
     private static void MakeSimplePolygon(List<Vector3> points, int opticount)
@@ -352,7 +400,7 @@ public static class LeafGeometry
         }
     }
 
-    public static Texture2D GetTexture(List<Vector3> points, int textureSize, Color32 inside, Color32 outside, Vector3 offsetA)
+    public static Texture2D GetTexture(List<Vector3> points, int textureSize)
     {
         Texture2D texture = new Texture2D(textureSize, textureSize);
         var snappedPoints = new List<Vector3Int>();
@@ -401,7 +449,8 @@ public static class LeafGeometry
             int pixel = 0;
 
             intersections = intersections.OrderBy(i => i.x).ToList();
-
+            Color32 inside = new Color32(255, 255, 255, 255);
+            Color32 outside = new Color32(0, 0, 0, 0);
             while (intersections.Count != 0)
             {
                 var intersection = intersections.First();
@@ -433,13 +482,11 @@ public static class LeafGeometry
             }
         }
 
+        //Debug.Log("Inside: " + insideCount + " Outside: " + outsideCount);
 
-
-        Debug.Log("Inside: " + insideCount + " Outside: " + outsideCount);
-
-        var diff = textureSize * textureSize - insideCount - outsideCount;
-        if (diff != 0)
-            Debug.LogWarning("Oppsie, no encajan los pixeles por " + (-diff));
+        //var diff = textureSize * textureSize - insideCount - outsideCount;
+        //if (diff != 0)
+        //    Debug.LogWarning("Oppsie, no encajan los pixeles por " + (-diff));
 
         texture.Apply();
         return texture;
@@ -763,12 +810,12 @@ public static class LeafGeometry
         return 2 * (c - 2 * b + a);
     }
 
-    public static Mesh GetTube(int sides, Vector2 size, Vector3[] points, AnimationCurve stretch)
+    public static void GetTube(int sides, Vector2 size, Vector3[] points, AnimationCurve stretch, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uvs)
     {
-        Vector3[] vertices = new Vector3[sides * points.Length];
-        Vector3[] normals = new Vector3[sides * points.Length];
-        Vector2[] uvs = new Vector2[sides * points.Length];
-        int[] triangles = new int[(sides - 2) * 3 * 2 + 2 * sides * 3 * (points.Length - 1)];
+        vertices = new Vector3[sides * points.Length];
+        normals = new Vector3[sides * points.Length];
+        uvs = new Vector2[sides * points.Length];
+        triangles = new int[(sides - 2) * 3 * 2 + 2 * sides * 3 * (points.Length - 1)];
 
         Vector3 a = Vector3.zero;
         Vector3 b = Vector3.zero;
@@ -869,12 +916,17 @@ public static class LeafGeometry
             triangles[offset + (sides - 1) * 2 * 3 + 4] = i * sides + sides;
             triangles[offset + (sides - 1) * 2 * 3 + 5] = i * sides;
         }
+    }
+
+    public static Mesh GetTubeMesh(int sides, Vector2 size, Vector3[] points, AnimationCurve stretch)
+    {
+        GetTube(sides, size, points, stretch, out var vertices, out var normals, out var triangles, out var uvs);
 
         Mesh mesh = new Mesh();
         mesh.vertices = vertices;
         mesh.normals = normals;
-        mesh.uv = uvs;
         mesh.triangles = triangles;
+        mesh.uv = uvs;
 
         return mesh;
     }

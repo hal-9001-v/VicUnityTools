@@ -9,12 +9,11 @@ public class LeafVariable : ILVariable
 
     [SerializeField] private char key = 'L';
 
-    [SerializeField] private float radius = 1f;
-    [SerializeField] private int sides = 3;
-
     [SerializeField] private MeshFilter meshFilter;
 
     private List<LContext> leaves;
+
+    [SerializeField] private LeafDNA2 dna;
 
     public ILVariable Clone(LContext context)
     {
@@ -46,7 +45,10 @@ public class LeafVariable : ILVariable
                 rotations[i] = leaves[i].rotation.eulerAngles;
             }
 
-            meshFilter.mesh = LeafGeometry.GetPolygons(sides, radius, positions, rotations);
+            meshFilter.mesh = LeafGeometry.GetLeavesMesh(dna, positions, rotations, out var propertyBlock);
+            var renderer = meshFilter.GetComponent<MeshRenderer>();
+
+            renderer.SetPropertyBlock(propertyBlock);
         }
     }
 }

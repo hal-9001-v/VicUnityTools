@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Flower : MonoBehaviour
+public class Plant : MonoBehaviour
 {
     [SerializeField] private BodyVariable trunk;
     [SerializeField] private BodyVariable leaf;
