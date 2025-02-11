@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 public class LeafTest : MonoBehaviour
 {
     [SerializeField]
-    private LeafDNA2 dna;
+    private SegmentedLeafDNA dna;
 
     [SerializeField]
     private bool renderIndex;
@@ -77,12 +77,8 @@ public class LeafTest : MonoBehaviour
         tubeMeshFilter.mesh = LeafGeometry.GetTubeMesh(tubeSides, tubeSize, points.ToArray(), tubeThicCurve);
 
         points.Add(Vector3.zero);
-        LeafGeometry.GetLeaves(dna, points.ToArray(), eulers.ToArray(), out var vertices, out var triangles, out var uvs);
 
-        var mesh = new Mesh();
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.uv = uvs;
+        var mesh = LeafGeometry.GetSegmentedLeavesMesh(dna, points.ToArray(), eulers.ToArray(), out var propertyBlock);
 
         MeshFilter.mesh = mesh;
     }

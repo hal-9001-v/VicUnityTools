@@ -6,7 +6,7 @@ public class Flower : MonoBehaviour
     [Range(0, 20)] public int petals;
 
     [Range(0, 1)] public float separation;
-    public LeafDNA2 dna;
+    public SegmentedLeafDNA dna;
 
     private MeshFilter MeshFilter => GetComponent<MeshFilter>();
     private MeshRenderer MeshRenderer => GetComponent<MeshRenderer>();

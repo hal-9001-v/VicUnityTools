@@ -6,73 +6,59 @@ using UnityEngine.Experimental.Rendering;
 
 public static class LeafGeometry
 {
-    public static Mesh GetLeafFromPoly(int sides, int segmentations, Vector2 size, Vector3 position, Vector3 euler, AnimationCurve segmentationsGrow)
+    public static Mesh GetPolyLeavesMesh(PolyDna dna, Vector3[] positions, Vector3[] eulers, Vector3 size, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
     {
-        Vector3[] vertices = new Vector3[sides * (segmentations + 1) + 1];
-        Vector3[] normals = new Vector3[sides * (segmentations + 1) + 1];
-        Vector2[] uvs = new Vector2[sides * (segmentations + 1) + 1];
+        var mesh = GetLeavesQuadsMesh(positions, eulers);
+        var texture = GetTexture(GetPolyLeaf(dna));
 
-        int[] triangles = new int[sides * (segmentations + 1) * 3];
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
 
-        var rotation = Quaternion.Euler(euler);
+        return mesh;
+    }
 
-        var angle = 360 / sides;
+    public static Vector2[] GetPolyLeaf(PolyDna dna)
+    {
+        Vector2[] vertices = new Vector2[dna.sides * (dna.segmentations + 1)];
 
-        float lerpStep = 1 / (float)(segmentations + 1);
-        for (int i = 0; i < sides; i++)
+        var rotation = Quaternion.Euler(0, 0, dna.angle);
+        var angle = 360 / dna.sides;
+
+        float lerpStep = 1 / (float)(dna.segmentations + 1);
+        for (int i = 0; i < dna.sides; i++)
         {
-            float x = Mathf.Cos(Mathf.Deg2Rad * angle * i) * size.x;
-            float y = Mathf.Sin(Mathf.Deg2Rad * angle * i) * size.y;
-            Vector3 vertex = new Vector3(x, 0, y);
+            float x = Mathf.Cos(Mathf.Deg2Rad * angle * i) * dna.size.x;
+            float y = Mathf.Sin(Mathf.Deg2Rad * angle * i) * dna.size.y;
+            Vector2 vertex = new Vector2(x, y);
             vertex = rotation * vertex;
-            vertex += position;
 
-            vertices[i * (1 + segmentations)] = vertex;
+            vertices[i * (1 + dna.segmentations)] = vertex;
 
-            float nextX = Mathf.Cos(Mathf.Deg2Rad * angle * (i + 1)) * size.x;
-            float nextY = Mathf.Sin(Mathf.Deg2Rad * angle * (i + 1)) * size.y;
-            Vector3 nextVertex = position + rotation * new Vector3(nextX, 0, nextY);
+            float nextX = Mathf.Cos(Mathf.Deg2Rad * angle * (i + 1)) * dna.size.x;
+            float nextY = Mathf.Sin(Mathf.Deg2Rad * angle * (i + 1)) * dna.size.y;
+            Vector2 nextVertex = rotation * new Vector2(nextX, nextY);
 
-            for (int j = 0; j < segmentations; j++)
+            for (int j = 0; j < dna.segmentations; j++)
             {
                 var lerpValue = (1 + j) * lerpStep;
-                var segmentationVertex = Vector3.Lerp(vertex, nextVertex, lerpValue);
+                var segmentationVertex = Vector2.Lerp(vertex, nextVertex, lerpValue);
                 var fromCenter = segmentationVertex - vertices[vertices.Length - 1];
 
-                segmentationVertex += -fromCenter * (1 - segmentationsGrow.Evaluate(lerpValue));
+                segmentationVertex += -fromCenter * (1 - dna.segmentationsGrow.Evaluate(lerpValue));
 
-                vertices[i * (segmentations + 1) + j + 1] = segmentationVertex;
+                vertices[i * (dna.segmentations + 1) + j + 1] = segmentationVertex;
             }
         }
 
-        for (int i = 0; i < vertices.Length - 1; i++)
+        var minX = vertices.Min(v => v.x);
+        var minY = vertices.Min(v => v.y);
+
+        for (int i = 0; i < vertices.Length; i++)
         {
-            triangles[i * 3] = vertices.Length - 1;
-            triangles[i * 3 + 1] = i + 1;
-            triangles[i * 3 + 2] = i;
+            vertices[i] -= new Vector2(minX, minY);
         }
 
-        triangles[triangles.Length - 3] = vertices.Length - 2;
-        triangles[triangles.Length - 2] = vertices.Length - 1;
-        triangles[triangles.Length - 1] = 0;
-
-        for (int i = 0; i < triangles.Length; i++)
-            triangles[i] %= vertices.Length;
-
-        vertices[vertices.Length - 1] = position;
-
-        for (int i = 0; i < normals.Length; i++)
-        {
-            normals[i] = Vector3.up;
-        }
-
-        var mesh = new Mesh();
-        mesh.vertices = vertices;
-        mesh.normals = normals;
-        mesh.uv = uvs;
-        mesh.triangles = triangles;
-
-        return mesh;
+        return vertices;
     }
 
     public static Mesh GetLeafFromCurve(int segmentations, Vector2 size, Vector3 position, Vector3 euler, AnimationCurve horizontalCurve, AnimationCurve verticalCurve)
@@ -111,7 +97,7 @@ public static class LeafGeometry
         return mesh;
     }
 
-    public static Mesh GetLeaf(LeafDNA dna)
+    public static Mesh GetTippedLeafMesh(TipLeafDNA dna)
     {
         int vertexCount = dna.segmentations * 2;
         List<Vector3> vertices = new List<Vector3>();
@@ -222,13 +208,13 @@ public static class LeafGeometry
         return vertices;
     }
 
-    public static Vector3[] GetLeafPolygon(LeafDNA2 dna)
+    public static Vector2[] GetSegmentedLeaf(SegmentedLeafDNA dna)
     {
-        List<Vector3> vertices = new List<Vector3>
+        List<Vector2> vertices = new List<Vector2>
         {
             //Petiole
-            new Vector3(-dna.PetioleWidth * dna.width * 0.5f, 0, 0),
-            new Vector3(-dna.PetioleWidth* 0.5f, 0, dna.PetioleHeight)
+            new Vector2(-dna.PetioleWidth * dna.width * 0.5f, 0),
+            new Vector2(-dna.PetioleWidth* 0.5f, dna.PetioleHeight)
         };
 
         var height = dna.PetioleHeight + dna.FirstBladeWidth * 0.5f;
@@ -256,25 +242,40 @@ public static class LeafGeometry
         return vertices.ToArray();
     }
 
-    public static void GetLeaves(LeafDNA2 dna, Vector3[] positions, Vector3[] eulers, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
+    public static Mesh GetSegmentedLeavesMesh(SegmentedLeafDNA dna, Vector3[] positions, Vector3[] eulers, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
     {
-        var polygon = GetLeafPolygon(dna);
-        var quadVertices = new Vector3[] {
+        var mesh = GetLeavesQuadsMesh(positions, eulers);
+        var texture = GetTexture(GetSegmentedLeaf(dna), textureSize);
+
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
+
+        return mesh;
+    }
+
+    private static void GetQuadInfo(Vector2 size, out Vector3[] vertices, out Vector2[] uvs, out int[] triangles)
+    {
+        vertices = new Vector3[] {
             new Vector3(-0.5f, 0,0),
             new Vector3(-0.5f, 0,1),
             new Vector3(0.5f, 0,1),
             new Vector3(0.5f, 0,0),
         };
-        var quadUVs = new Vector2[] {
+        uvs = new Vector2[] {
             new Vector2(0,0),
             new Vector2(0,1),
             new Vector2(1,1),
             new Vector2(1,0)
         };
-        var quadTriangles = new int[] {
+        triangles = new int[] {
             0,1,2,
             3,0,2
         };
+    }
+
+    public static void GetLeavesQuads(Vector3[] positions, Vector3[] eulers, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
+    {
+        GetQuadInfo(Vector2.one, out var quadVertices, out var quadUVs, out var quadTriangles);
 
         List<Vector3> verticesList = new();
         List<int> triangleList = new();
@@ -302,24 +303,19 @@ public static class LeafGeometry
         uvs = uvList.ToArray();
     }
 
-    public static Mesh GetLeavesMesh(LeafDNA2 dna, Vector3[] positions, Vector3[] eulers, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
+    public static Mesh GetLeavesQuadsMesh(Vector3[] positions, Vector3[] eulers)
     {
-        GetLeaves(dna, positions, eulers, out var vertices, out var triangles, out var uvs);
+        GetLeavesQuads(positions, eulers, out var vertices, out var triangles, out var uvs);
 
         Mesh mesh = new Mesh();
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         mesh.uv = uvs;
 
-        var texture = GetTexture(new List<Vector3>(GetLeafPolygon(dna)), textureSize);
-
-        propertyBlock = new MaterialPropertyBlock();
-        propertyBlock.SetTexture(alphaCutKey, texture);
-
         return mesh;
     }
 
-    public static void GetFlowerPetals(LeafDNA2 dna, int petalCount, float separation, Vector3 position, Vector3 euler, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
+    public static void GetFlowerPetals(SegmentedLeafDNA dna, int petalCount, float separation, Vector3 position, Vector3 euler, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
     {
         List<Vector3> positions = new List<Vector3>();
         List<Vector3> eulers = new List<Vector3>();
@@ -334,10 +330,12 @@ public static class LeafGeometry
             eulers.Add(petalEuler);
         }
 
-        GetLeaves(dna, positions.ToArray(), eulers.ToArray(), out vertices, out triangles, out uvs);
+        GetLeavesQuads(positions.ToArray(), eulers.ToArray(), out vertices, out triangles, out uvs);
+
+        throw new NotImplementedException("TODO");
     }
 
-    public static Mesh GetFlowerPetalsMesh(LeafDNA2 dna, int petalCount, float separation, Vector3 position, Vector3 euler, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
+    public static Mesh GetFlowerPetalsMesh(SegmentedLeafDNA dna, int petalCount, float separation, Vector3 position, Vector3 euler, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
     {
         GetFlowerPetals(dna, petalCount, separation, position, euler, out var vertices, out var triangles, out var uvs);
 
@@ -346,7 +344,7 @@ public static class LeafGeometry
         mesh.triangles = triangles;
         mesh.uv = uvs;
 
-        var texture = GetTexture(new List<Vector3>(GetLeafPolygon(dna)), textureSize);
+        var texture = GetTexture(GetSegmentedLeaf(dna), textureSize);
 
         propertyBlock = new MaterialPropertyBlock();
         propertyBlock.SetTexture(alphaCutKey, texture);
@@ -354,7 +352,7 @@ public static class LeafGeometry
         return mesh;
     }
 
-    private static void MakeSimplePolygon(List<Vector3> points, int opticount)
+    private static void MakeSimplePolygon(List<Vector2> points, int opticount)
     {
         List<Tuple<int, int>> intersections = new();
 
@@ -400,47 +398,53 @@ public static class LeafGeometry
         }
     }
 
-    public static Texture2D GetTexture(List<Vector3> points, int textureSize)
+    public static Texture2D GetTexture(Vector2[] points, int textureSize = 256)
     {
         Texture2D texture = new Texture2D(textureSize, textureSize);
-        var snappedPoints = new List<Vector3Int>();
+        var snappedPoints = new List<Vector2Int>();
 
         float minX = points.Min(p => p.x);
         float maxX = points.Max(p => p.x);
-        float minZ = points.Min(p => p.z);
-        float maxZ = points.Max(p => p.z);
+        float minY = points.Min(p => p.y);
+        float maxY = points.Max(p => p.y);
 
         float scale = 0;
-        if (maxX > maxZ)
+        if (maxX > maxY)
         {
             scale = textureSize / (maxX - minX);
         }
         else
         {
-            scale = textureSize / (maxZ - minZ);
+            scale = textureSize / (maxY - minY);
         }
 
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < points.Length; i++)
         {
             //Snapp into int values
-            snappedPoints.Add(new Vector3Int(
-                Mathf.RoundToInt((points[i].x) * scale) + textureSize / 2,
-                Mathf.RoundToInt(points[i].y),
-                Mathf.RoundToInt((points[i].z) * scale)));
+            snappedPoints.Add(new Vector2Int(
+                Mathf.RoundToInt(points[i].x * scale),
+                Mathf.RoundToInt(points[i].y * scale)));
         }
 
         int insideCount = 0;
         int outsideCount = 0;
 
-        List<Vector3> intersections = new();
+        List<Vector2> intersections = new();
         for (int i = 0; i < textureSize; i++)
         {
-            Vector3Int a = new Vector3Int(0, 0, i);
-            Vector3Int b = new Vector3Int(textureSize, 0, i);
+            Vector2Int a = new Vector2Int(-1, i);
+            Vector2Int b = new Vector2Int(textureSize + 1, i);
 
-            for (int j = 0; j < points.Count - 1; j++)
+            for (int j = 0; j < points.Length; j++)
             {
-                if (DoesIntersect(a, b, snappedPoints[j], snappedPoints[j + 1]))
+                if (j == points.Length - 1)
+                {
+                    if (DoesIntersect(a, b, snappedPoints[j], snappedPoints[0]))
+                    {
+                        intersections.Add(GetIntersectingPoint(a, b, snappedPoints[j], snappedPoints[0]));
+                    }
+                }
+                else if (DoesIntersect(a, b, snappedPoints[j], snappedPoints[j + 1]))
                 {
                     intersections.Add(GetIntersectingPoint(a, b, snappedPoints[j], snappedPoints[j + 1]));
                 }
@@ -484,28 +488,28 @@ public static class LeafGeometry
 
         //Debug.Log("Inside: " + insideCount + " Outside: " + outsideCount);
 
-        //var diff = textureSize * textureSize - insideCount - outsideCount;
-        //if (diff != 0)
-        //    Debug.LogWarning("Oppsie, no encajan los pixeles por " + (-diff));
+        var diff = textureSize * textureSize - insideCount - outsideCount;
+        if (diff != 0)
+            Debug.LogWarning("Oppsie, no encajan los pixeles por " + (-diff));
 
         texture.Apply();
         return texture;
     }
 
-    private static void MirrorVertices(List<Vector3> vertices)
+    private static void MirrorVertices(List<Vector2> vertices)
     {
-        var reversed = new List<Vector3>(vertices);
+        var reversed = new List<Vector2>(vertices);
         reversed.Reverse();
 
         for (int i = 0; i < reversed.Count; i++)
         {
-            reversed[i] = new Vector3(-reversed[i].x, 0, reversed[i].z);
+            reversed[i] = new Vector2(-reversed[i].x, reversed[i].y);
         }
 
         vertices.AddRange(reversed);
     }
 
-    public static bool DoesIntersect(Vector3 p1, Vector3 p2, Vector3 q1, Vector3 q2)
+    public static bool DoesIntersect(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2)
     {
         var o1 = GetOrientation(p1, p2, q1);
         var o2 = GetOrientation(p1, p2, q2);
@@ -520,24 +524,22 @@ public static class LeafGeometry
         return true;
     }
 
-    public static Vector3 GetIntersectingPoint(Vector3 p1, Vector3 p2, Vector3 q1, Vector3 q2)
+    public static Vector2 GetIntersectingPoint(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2)
     {
-        float a1 = p2.z - p1.z;
+        float a1 = p2.y - p1.y;
         float b1 = p1.x - p2.x;
-        float c1 = a1 * p1.x + b1 * p1.z;
+        float c1 = a1 * p1.x + b1 * p1.y;
 
-        float a2 = q2.z - q1.z;
+        float a2 = q2.y - q1.y;
         float b2 = q1.x - q2.x;
-        float c2 = a2 * q1.x + b2 * q1.z;
+        float c2 = a2 * q1.x + b2 * q1.y;
 
         float det = a1 * b2 - a2 * b1;
 
-        {
-            float x = (b2 * c1 - b1 * c2) / det;
-            float z = (a1 * c2 - a2 * c1) / det;
+        float x = (b2 * c1 - b1 * c2) / det;
+        float y = (a1 * c2 - a2 * c1) / det;
 
-            return new Vector3(x, 0, z);
-        }
+        return new Vector2(x, y);
     }
 
     public static Vector3 GetClosestPointFromSegment(Vector3 p, Vector3 a, Vector3 b)
@@ -549,20 +551,20 @@ public static class LeafGeometry
         return a + t * ab;
     }
 
-    public static bool GetOrientation(Vector3 a, Vector3 b, Vector3 c)
+    public static bool GetOrientation(Vector2 a, Vector2 b, Vector2 c)
     {
-        var val = (b.z - a.z) * (c.x - b.x) - (b.x - a.x) * (c.z - b.z);
+        var val = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
 
         return val > 0;
     }
 
-    private static List<Vector3> SmoothPolygon(List<Vector3> points, int iterations)
+    private static List<Vector2> SmoothPolygon(List<Vector2> points, int iterations)
     {
         if (iterations <= 0)
-            return new List<Vector3>(points);
+            return new List<Vector2>(points);
 
-        List<Vector3> previous = new List<Vector3>(points);
-        List<Vector3> next = new List<Vector3>();
+        List<Vector2> previous = new List<Vector2>(points);
+        List<Vector2> next = new List<Vector2>();
 
         float factor = 0.25f;
 
@@ -573,23 +575,23 @@ public static class LeafGeometry
             next.Add(previous.First());
             for (int j = 0; j < previous.Count - 1; j++)
             {
-                var c = Vector3.Lerp(previous[j], previous[j + 1], factor);
-                var d = Vector3.Lerp(previous[j], previous[j + 1], 1 - factor);
+                var c = Vector2.Lerp(previous[j], previous[j + 1], factor);
+                var d = Vector2.Lerp(previous[j], previous[j + 1], 1 - factor);
 
                 next.Add(c);
                 next.Add(d);
             }
             next.Add(previous.Last());
 
-            previous = new List<Vector3>(next);
+            previous = new List<Vector2>(next);
         }
 
         return next;
     }
 
-    private static List<Vector3> GetTip(LContext context, LeafDNA2.LeafBlade blade, float width, float height)
+    private static List<Vector2> GetTip(LContext context, SegmentedLeafDNA.LeafBlade blade, float width, float height)
     {
-        List<Vector3> tip = new List<Vector3>();
+        List<Vector2> tip = new List<Vector2>();
 
         float threshold = 0.1f;
         bool cut = false;

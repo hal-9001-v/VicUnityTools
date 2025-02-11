@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [Serializable]
-public struct LeafDNA2
+public struct SegmentedLeafDNA
 {
     [Header("Body")]
     [Range(0, 10)] public float height;

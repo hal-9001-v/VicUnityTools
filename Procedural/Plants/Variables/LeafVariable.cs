@@ -13,7 +13,7 @@ public class LeafVariable : ILVariable
 
     private List<LContext> leaves;
 
-    [SerializeField] private LeafDNA2 dna;
+    [SerializeField] private SegmentedLeafDNA dna;
 
     public ILVariable Clone(LContext context)
     {
@@ -45,7 +45,7 @@ public class LeafVariable : ILVariable
                 rotations[i] = leaves[i].rotation.eulerAngles;
             }
 
-            meshFilter.mesh = LeafGeometry.GetLeavesMesh(dna, positions, rotations, out var propertyBlock);
+            meshFilter.mesh = LeafGeometry.GetSegmentedLeavesMesh(dna, positions, rotations, out var propertyBlock);
             var renderer = meshFilter.GetComponent<MeshRenderer>();
 
             renderer.SetPropertyBlock(propertyBlock);
