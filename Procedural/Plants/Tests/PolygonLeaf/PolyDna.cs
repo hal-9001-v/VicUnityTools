@@ -12,7 +12,4 @@ public struct PolyDna
 
     public AnimationCurve segmentationsGrow;
     public Vector2 size;
-
-    [Range(0, 180)]
-    public float angle;
 }

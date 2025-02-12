@@ -21,7 +21,7 @@ public static class LeafGeometry
     {
         Vector2[] vertices = new Vector2[dna.sides * (dna.segmentations + 1)];
 
-        var rotation = Quaternion.Euler(0, 0, dna.angle);
+        var rotation = Quaternion.Euler(0, 0, 0);
         var angle = 360 / dna.sides;
 
         float lerpStep = 1 / (float)(dna.segmentations + 1);
@@ -97,48 +97,56 @@ public static class LeafGeometry
         return mesh;
     }
 
-    public static Mesh GetTippedLeafMesh(TipLeafDNA dna)
+    public static Mesh GetTippedLeafMesh(TipLeafDNA dna, Vector3[] positions, Vector3[] eulers, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
+    {
+        var mesh = GetLeavesQuadsMesh(positions, eulers);
+        var texture = GetTexture(GetTippedLeaf(dna));
+
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
+
+        return mesh;
+    }
+
+    public static Vector2[] GetTippedLeaf(TipLeafDNA dna)
     {
         int vertexCount = dna.segmentations * 2;
-        List<Vector3> vertices = new List<Vector3>();
-        Vector3[] normals = new Vector3[vertexCount];
-        Vector2[] uvs = new Vector2[vertexCount];
-
+        List<Vector2> vertices = new List<Vector2>();
         Stack<LContext> contexts = new Stack<LContext>();
 
-        vertices.Add(new Vector3(-0.5f * dna.petioleWidth, 0, 0));
-        vertices.Add(new Vector3(-0.5f * dna.petioleWidth, 0, dna.petioleLength));
+        vertices.Add(new Vector2(-0.5f * dna.petioleWidth, 0));
+        vertices.Add(new Vector2(-0.5f * dna.petioleWidth, dna.petioleLength));
 
-        var lowTipStart = new Vector3(-dna.petioleWidth * 0.5f, 0, dna.petioleLength);
-        var lowTipEnd = lowTipStart + new Vector3(-dna.lowMidribWidth * 0.5f, 0, dna.lowMidribLength);
+        var lowTipStart = new Vector2(-dna.petioleWidth * 0.5f, dna.petioleLength);
+        var lowTipEnd = lowTipStart + new Vector2(-dna.lowMidribWidth * 0.5f, dna.lowMidribLength);
 
         vertices.AddRange(GetTips(dna.lowTipCount, dna.lowTipLength, lowTipStart, lowTipEnd, dna.lowTipAngle));
         vertices.Add(lowTipEnd);
 
-        Vector3 highTipStart = lowTipEnd;
-        Vector3 highTipEnd;
+        Vector2 highTipStart = lowTipEnd;
+        Vector2 highTipEnd;
         bool pointy = dna.highTipCount % 2 == 1;
         int highTipCount = pointy ? (dna.highTipCount - 1) / 2 : dna.highTipCount / 2;
         if (pointy)
         {
-            highTipEnd = new Vector3(-dna.highMidribWidth * 0.5f, 0, dna.highMidribLength + dna.lowMidribLength + dna.petioleLength);
+            highTipEnd = new Vector2(-dna.highMidribWidth * 0.5f, dna.highMidribLength + dna.lowMidribLength + dna.petioleLength);
         }
         else
         {
-            highTipEnd = new Vector3(0, 0, dna.highMidribLength + dna.lowMidribLength + dna.petioleLength);
+            highTipEnd = new Vector2(0, dna.highMidribLength + dna.lowMidribLength + dna.petioleLength);
         }
 
         vertices.AddRange(GetTips(highTipCount, dna.highTipLength, highTipStart, highTipEnd, dna.highTipAngle));
         vertices.Add(highTipEnd);
 
-        Vector3 rightHighTipEnd = lowTipEnd;
+        Vector2 rightHighTipEnd = lowTipEnd;
         rightHighTipEnd.x *= -1;
 
-        Vector3 rightHighTipStart;
+        Vector2 rightHighTipStart;
         if (pointy)
         {
             var pointyStart = highTipEnd;
-            var pointyEnd = pointyStart + new Vector3(dna.highMidribWidth, 0, 0);
+            var pointyEnd = pointyStart + new Vector2(dna.highMidribWidth, 0);
             rightHighTipStart = pointyEnd;
 
             vertices.Add(pointyStart);
@@ -153,21 +161,29 @@ public static class LeafGeometry
         vertices.AddRange(GetTips(highTipCount, dna.highTipLength, rightHighTipStart, rightHighTipEnd, -dna.highTipAngle));
         vertices.Add(rightHighTipEnd);
 
-        vertices.AddRange(GetTips(dna.lowTipCount, dna.lowTipLength, rightHighTipEnd, new Vector3(0.5f * dna.petioleWidth, 0, dna.petioleLength), -dna.lowTipAngle));
+        vertices.AddRange(GetTips(dna.lowTipCount, dna.lowTipLength, rightHighTipEnd, new Vector2(0.5f * dna.petioleWidth, dna.petioleLength), -dna.lowTipAngle));
 
-        vertices.Add(new Vector3(0.5f * dna.petioleWidth, 0, dna.petioleLength));
-        vertices.Add(new Vector3(0.5f * dna.petioleWidth, 0, 0));
+        vertices.Add(new Vector2(0.5f * dna.petioleWidth, dna.petioleLength));
+        vertices.Add(new Vector2(0.5f * dna.petioleWidth, 0));
 
-        Mesh mesh = new Mesh();
-        mesh.vertices = vertices.ToArray();
+        return vertices.ToArray();
+    }
+
+    public static Mesh GetTippedLeavesMesh(TipLeafDNA dna, Vector3[] positions, Vector3[] eulers, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
+    {
+        var mesh = GetLeavesQuadsMesh(positions, eulers);
+        var texture = GetTexture(GetTippedLeaf(dna));
+
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
 
         return mesh;
     }
 
-    private static List<Vector3> GetTips(int tips, float tipLength, Vector3 start, Vector3 end, float angleOffset)
+    private static List<Vector2> GetTips(int tips, float tipLength, Vector2 start, Vector2 end, float angleOffset)
     {
         if (tips < 1)
-            return new List<Vector3>();
+            return new List<Vector2>();
 
         Stack<LContext> contexts = new Stack<LContext>();
         var lowMidribContext = new LContext
@@ -179,8 +195,10 @@ public static class LeafGeometry
         contexts.Push(lowMidribContext);
 
         List<Vector3> vertices = new();
+        var end3D = new Vector3(end.x, 0, end.y);
+        var start3D = new Vector3(start.x, 0, start.y);
 
-        var cornerLength = (end - start).magnitude * 0.25f;
+        var cornerLength = (end3D - start3D).magnitude * 0.25f;
 
         var tipStep = 180 / tips;
 
@@ -205,7 +223,7 @@ public static class LeafGeometry
             contexts.Push(currentContext);
         }
 
-        return vertices;
+        return vertices.Select(v => new Vector2(v.x, v.z)).ToList();
     }
 
     public static Vector2[] GetSegmentedLeaf(SegmentedLeafDNA dna)
@@ -219,23 +237,21 @@ public static class LeafGeometry
 
         var height = dna.PetioleHeight + dna.FirstBladeWidth * 0.5f;
         LContext context = new LContext();
-        context.position = new Vector3(-dna.PetioleWidth * 0.5f, 0, height);
+        context.position = new Vector2(-dna.PetioleWidth * 0.5f, height);
         context.rotation = Quaternion.Euler(0, -90 + dna.firstBlade.angle, 0);
 
         vertices.AddRange(GetTip(context, dna.firstBlade, dna.FirstBladeWidth, dna.MidribWidth));
 
         height += dna.FirstBladeWidth * 0.5f + dna.SecondBladeWidth * 0.5f;
-        context.position = new Vector3(-dna.PetioleWidth * 0.5f, 0, height);
+        context.position = new Vector2(-dna.PetioleWidth * 0.5f, height);
         context.rotation = Quaternion.Euler(0, -90 + dna.secondBlade.angle, 0);
         vertices.AddRange(GetTip(context, dna.secondBlade, dna.SecondBladeWidth, dna.MidribWidth));
 
         height += dna.SecondBladeWidth * 0.5f + dna.ThirdBladeWidth * 0.5f;
-        context.position = new Vector3(-dna.PetioleWidth * 0.5f, 0, height);
+        context.position = new Vector2(-dna.PetioleWidth * 0.5f, height);
         context.rotation = Quaternion.Euler(0, -90 + dna.thirdBlade.angle, 0);
         vertices.AddRange(GetTip(context, dna.thirdBlade, dna.ThirdBladeWidth, dna.MidribWidth));
 
-        if (dna.fixComplex)
-            MakeSimplePolygon(vertices, dna.optiCount);
         MirrorVertices(vertices);
         vertices = SmoothPolygon(vertices, dna.Smooth);
 
@@ -361,13 +377,13 @@ public static class LeafGeometry
         {
             for (int i = 0; i < points.Count - 1; i++)
             {
-                Vector3 a = points[i];
-                Vector3 b = points[i + 1];
+                Vector2 a = points[i];
+                Vector2 b = points[i + 1];
 
                 for (int j = i + 2; j < points.Count - 1; j++)
                 {
-                    Vector3 c = points[j];
-                    Vector3 d = points[j + 1];
+                    Vector2 c = points[j];
+                    Vector2 d = points[j + 1];
 
                     if (DoesIntersect(a, b, c, d) && opticount > 0)
                     {
