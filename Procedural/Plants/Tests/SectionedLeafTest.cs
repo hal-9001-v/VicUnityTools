@@ -1,85 +1,48 @@
-using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
 
-public class LeafTest : MonoBehaviour
+public class SegmentedLeafTest : MonoBehaviour
 {
-    [SerializeField]
-    private SegmentedLeafDNA dna;
+	[SerializeField]
+	private SegmentedLeafDNA dna;
 
-    [SerializeField]
-    private bool renderIndex;
+	private MeshFilter MeshFilter => GetComponent<MeshFilter>();
 
-    private MeshFilter MeshFilter => GetComponent<MeshFilter>();
+	private MeshRenderer MeshRenderer => GetComponent<MeshRenderer>();
 
-    public MeshFilter tubeMeshFilter;
+	float framesPerSecond = 5;
+	float elapsedTime;
 
-    private MeshRenderer MeshRenderer => GetComponent<MeshRenderer>();
+	Vector2[] points;
 
-    public MeshRenderer greenOne;
+	[Range(0, 1)] public float radius;
 
-    public float updatesPerSecond = 1;
-    private float elapsed = 0;
+	// Update is called once per frame
+	private void Update()
+	{
+		elapsedTime += Time.deltaTime;
 
-    public int textureSize;
+		if (elapsedTime > 1 / framesPerSecond)
+		{
+			var mesh = LeafGeometry.GetSegmentedLeavesMesh(dna, new Vector3[] { Vector3.zero }, new Vector3[] { Vector3.zero }, out var propertyBlock);
+			points = LeafGeometry.GetSegmentedLeaf(dna);
+			MeshRenderer.SetPropertyBlock(propertyBlock);
+			MeshFilter.mesh = mesh;
 
-    private MaterialPropertyBlock propertyBlock;
+			elapsedTime = 0;
+		}
+	}
 
-    public Color32 outsideColor;
-    public Color32 insideColor;
+	private void OnDrawGizmos()
+	{
+		if (points != null)
+		{
+			for (int i = 0; i < points.Length - 1; i++)
+			{
+				Gizmos.DrawSphere(transform.TransformPoint(points[i]), radius);
+				Gizmos.DrawLine(transform.TransformPoint(points[i]), transform.TransformPoint(points[i + 1]));
+			}
+		}
 
-    public Vector3 offset;
+	}
 
-    [Header("Tube")]
-    public Vector2 tubeSize;
-
-    [Range(3, 10)] public int tubeSides;
-    public AnimationCurve tubeDisplacementCurve;
-    [Range(0, 10)] public float tubeHeight;
-    public AnimationCurve tubeThicCurve;
-    public Transform aPoint;
-    public Transform bPoint;
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    private void Awake()
-    {
-        propertyBlock = new MaterialPropertyBlock();
-
-        greenOne.SetPropertyBlock(propertyBlock);
-    }
-
-    // Update is called once per frame
-    private void Update()
-    {
-        elapsed += Time.deltaTime;
-        if (elapsed < 1f / updatesPerSecond) return;
-        elapsed = 0;
-
-        MakeTube();
-    }
-
-    private void MakeTube()
-    {
-        List<Vector3> points = new();
-        List<Vector3> eulers = new();
-
-        int segments = 100;
-        for (int i = 0; i < segments; i++)
-        {
-            var up = tubeDisplacementCurve.Evaluate(1.0f * i / segments) * tubeHeight;
-            var pos = Vector3.Lerp(aPoint.position, bPoint.position, i * 1.0f / segments);
-            pos.y = up;
-            points.Add(pos);
-            eulers.Add(new Vector3(90, 30 * i, 0));
-        }
-
-        tubeMeshFilter.mesh = LeafGeometry.GetTubeMesh(tubeSides, tubeSize, points.ToArray(), tubeThicCurve);
-
-        points.Add(Vector3.zero);
-
-        var mesh = LeafGeometry.GetSegmentedLeavesMesh(dna, points.ToArray(), eulers.ToArray(), out var propertyBlock);
-
-        MeshFilter.mesh = mesh;
-    }
 }
