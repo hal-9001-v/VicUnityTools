@@ -43,44 +43,44 @@ MonoBehaviour:
   m_GameObject: {fileID: 3923505719846944805}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f92ddb07ab079c43987a92b65affb34, type: 3}
+  m_Script: {fileID: 11500000, guid: a7f77a733e397ec48841c8094d4fb231, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   dna:
-    height: 4.27
-    width: 2.8
-    partialPetioleHeight: 0.147
-    partialPetioleWidth: 0
-    partialMidribHeight: 0.196
-    partialMidribWidth: 0.154
+    height: 1.98
+    width: 2.23
+    partialPetioleHeight: 0.187
+    partialPetioleWidth: 0.187
+    partialMidribHeight: 0.108
+    partialMidribWidth: 0.094
     firstBlade:
-      firstSectionWidth: 0.51
-      firstSectionHeight: 0.462
-      secondSectionWidth: 0.727
-      secondSectionHeight: 0.706
-      thirdSectionWidth: 0.245
-      thirdSectionHeight: 0.252
+      firstSectionWidth: 0.155
+      firstSectionHeight: 0.158
+      secondSectionWidth: 0.137
+      secondSectionHeight: 0.137
+      thirdSectionWidth: 0.162
+      thirdSectionHeight: 0.162
       angle: 0
     secondBlade:
-      firstSectionWidth: 0.748
-      firstSectionHeight: 0.622
-      secondSectionWidth: 1
-      secondSectionHeight: 0.497
-      thirdSectionWidth: 0.392
-      thirdSectionHeight: 0.392
+      firstSectionWidth: 0.187
+      firstSectionHeight: 0.162
+      secondSectionWidth: 0.165
+      secondSectionHeight: 0.158
+      thirdSectionWidth: 0.165
+      thirdSectionHeight: 0.165
       angle: 0
     thirdBlade:
-      firstSectionWidth: 0.587
-      firstSectionHeight: 0.406
-      secondSectionWidth: 0.448
-      secondSectionHeight: 0.427
-      thirdSectionWidth: 0.497
-      thirdSectionHeight: 0.538
-      angle: 7.2
-    Smooth: 3
+      firstSectionWidth: 0
+      firstSectionHeight: 0
+      secondSectionWidth: 0
+      secondSectionHeight: 0
+      thirdSectionWidth: 0
+      thirdSectionHeight: 0
+      angle: 0
+    Smooth: 1
     fixComplex: 0
-    optiCount: 0
-  radius: 0
+    optiCount: 1
+  radius: 0.14
 --- !u!33 &4720812608126735343
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -112,7 +112,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -876546973899608171, guid: f890f4bc2e76e3940a19dc49cca95174, type: 3}
+  - {fileID: -876546973899608171, guid: f610cf86d8c01ea438e34911a876c0d3, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
