@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [System.Serializable]
-public struct TipLeafDNA
+public struct TipLeafDNA : ILeafDNA
 {
     [SerializeField]
     [Range(0, 10)] public int segmentations;
@@ -44,4 +44,9 @@ public struct TipLeafDNA
 
     [SerializeField]
     [Range(-90, 90)] public float highTipAngle;
+
+    public Vector2[] GetPolygon()
+    {
+        return LeafGeometry.GetTippedLeaf(this);
+    }
 }

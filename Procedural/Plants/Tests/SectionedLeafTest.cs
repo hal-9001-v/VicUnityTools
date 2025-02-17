@@ -3,7 +3,7 @@ using UnityEngine;
 public class SegmentedLeafTest : MonoBehaviour
 {
     [SerializeField]
-    private SegmentedLeafDNA dna;
+    public SegmentedLeafDNA dna;
 
     private MeshFilter MeshFilter => GetComponent<MeshFilter>();
 
