@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public struct ComplexLeafDNA
 {
-    [SerializeField][Range(0, 1)] private float petioleX;
+    [SerializeField][Range(0, 0.1f)] private float petioleX;
     [SerializeField][Range(0, 1)] private float petioleY;
 
     public Vector2 Petiole => new Vector2(petioleX, petioleY);

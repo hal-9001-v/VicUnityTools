@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using static PlasticGui.Help.GuiHelp;
+using UnityEngine.UIElements;
 
 public static class LeafGeometry
 {
@@ -26,24 +29,69 @@ public static class LeafGeometry
         };
     }
 
-    private static List<Vector3> GetTip(LContext context, SegmentedLeafDNA.LeafBlade blade, float width)
+    private static List<Vector3> GetTip(LContext context, SegmentedLeafDNA.LeafBlade blade)
     {
         List<Vector3> tip = new List<Vector3>();
 
-        float currentHeight = blade.firstSectionHeight * 0.5f;
-        var first = new Vector3(-width * blade.firstSectionWidth * 0.5f, 0, currentHeight);
+        if (blade.firstSectionWidth < 0.05f)
+        {
+            MirrorVertices(tip, 0);
+            for (int i = 0; i < tip.Count; i++)
+            {
+                tip[i] = context * tip[i];
+            }
+
+            return tip;
+        }
+
+        //float currentHeight = blade.firstSectionHeight * 0.5f;
+        float currentHeight = 0;
+        var first = new Vector3(-blade.firstSectionWidth * 0.5f, 0, currentHeight);
         tip.Add(first);
 
+        if (blade.secondSectionWidth < 0.05f)
+        {
+            MirrorVertices(tip, 0);
+            for (int i = 0; i < tip.Count; i++)
+            {
+                tip[i] = context * tip[i];
+            }
+
+            return tip;
+        }
         currentHeight += blade.secondSectionHeight * 0.5f;
-        var second = new Vector3(-width * blade.secondSectionWidth * 0.5f, 0, currentHeight);
+        var second = new Vector3(-blade.secondSectionWidth * 0.5f, 0, currentHeight);
         tip.Add(second);
 
+        if (blade.thirdSectionWidth < 0.05f)
+        {
+            MirrorVertices(tip, 0);
+            for (int i = 0; i < tip.Count; i++)
+            {
+                tip[i] = context * tip[i];
+            }
+
+            return tip;
+        }
         currentHeight += blade.thirdSectionHeight * 0.5f;
-        var third = new Vector3(-width * blade.thirdSectionWidth * 0.5f, 0, currentHeight);
+        var third = new Vector3(-blade.thirdSectionWidth * 0.5f, 0, currentHeight);
         tip.Add(third);
 
-        var tip2D = tip.Select(t => new Vector2(t.x, t.z)).ToList();
-        MirrorVertices(tip2D);
+        if (blade.fourthSectionWidth < 0.05f)
+        {
+            MirrorVertices(tip, 0);
+            for (int i = 0; i < tip.Count; i++)
+            {
+                tip[i] = context * tip[i];
+            }
+
+            return tip;
+        }
+        currentHeight += blade.fourthSectionHeight * 0.5f;
+        var fourth = new Vector3(-blade.fourthSectionWidth * 0.5f, 0, currentHeight);
+        tip.Add(fourth);
+
+        MirrorVertices(tip, 0);
         for (int i = 0; i < tip.Count; i++)
         {
             tip[i] = context * tip[i];
@@ -141,14 +189,28 @@ public static class LeafGeometry
         }
     }
 
-    private static void MirrorVertices(List<Vector2> vertices)
+    private static void MirrorVertices(List<Vector2> vertices, float axis = 0.5f)
     {
         var reversed = new List<Vector2>(vertices);
         reversed.Reverse();
 
+        float xMax = vertices.Max(v => v.y);
         for (int i = 0; i < reversed.Count; i++)
         {
-            reversed[i] = new Vector2(-reversed[i].x, reversed[i].y);
+            reversed[i] = new Vector2(-reversed[i].x + 2 * axis, reversed[i].y);
+        }
+
+        vertices.AddRange(reversed);
+    }
+
+    private static void MirrorVertices(List<Vector3> vertices, float axis = 0.5f)
+    {
+        var reversed = new List<Vector3>(vertices);
+        reversed.Reverse();
+
+        for (int i = 0; i < reversed.Count; i++)
+        {
+            reversed[i] = new Vector3(-reversed[i].x + 2 * axis, 0, reversed[i].z);
         }
 
         vertices.AddRange(reversed);
@@ -286,43 +348,6 @@ public static class LeafGeometry
         return a + t * ab;
     }
 
-    public static void GetFlowerPetals(SegmentedLeafDNA dna, int petalCount, float separation, Vector3 position, Vector3 euler, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
-    {
-        List<Vector3> positions = new List<Vector3>();
-        List<Vector3> eulers = new List<Vector3>();
-
-        for (int i = 0; i < petalCount; i++)
-        {
-            var petalEuler = Vector3.up * 360 / petalCount * i;
-            Quaternion rotation = Quaternion.Euler(petalEuler);
-            var petalPosition = position + rotation * Vector3.forward * separation;
-
-            positions.Add(petalPosition);
-            eulers.Add(petalEuler);
-        }
-
-        GetLeavesQuads(positions.ToArray(), eulers.ToArray(), out vertices, out triangles, out uvs);
-
-        throw new NotImplementedException("TODO");
-    }
-
-    public static Mesh GetFlowerPetalsMesh(SegmentedLeafDNA dna, int petalCount, float separation, Vector3 position, Vector3 euler, out MaterialPropertyBlock propertyBlock, int textureSize = 256, string alphaCutKey = "_AlphaCut")
-    {
-        GetFlowerPetals(dna, petalCount, separation, position, euler, out var vertices, out var triangles, out var uvs);
-
-        Mesh mesh = new Mesh();
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.uv = uvs;
-
-        var texture = GetTexture(GetSegmentedLeaf(dna), textureSize);
-
-        propertyBlock = new MaterialPropertyBlock();
-        propertyBlock.SetTexture(alphaCutKey, texture);
-
-        return mesh;
-    }
-
     public static Vector2 GetIntersectingPoint(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2)
     {
         float a1 = p2.y - p1.y;
@@ -341,40 +366,36 @@ public static class LeafGeometry
         return new Vector2(x, y);
     }
 
-    public static Mesh GetLeafFromCurve(int segmentations, Vector2 size, Vector3 position, Vector3 euler, AnimationCurve horizontalCurve, AnimationCurve verticalCurve)
+    public static Mesh GetLeavesFromCurveMesh(CurveLeafDna dna, Vector3[] positions, Vector3[] eulers, out MaterialPropertyBlock propertyBlock, string alphaCutKey = "_AlphaCut")
     {
-        Vector3[] vertices = new Vector3[(segmentations * 2)];
-        Vector3[] normals = new Vector3[segmentations * 2];
-        Vector2[] uvs = new Vector2[segmentations * 2];
+        var mesh = GetLeavesQuadsMesh(positions, eulers);
+        var texture = GetTexture(GetLeafFromCurve(dna));
 
-        for (int i = 0; i < segmentations; i++)
-        {
-            var lerpValue = i / (float)segmentations;
-            var horizontalLerp = horizontalCurve.Evaluate(lerpValue);
-            var verticalLerp = verticalCurve.Evaluate(lerpValue);
-
-            var x = Mathf.Lerp(0, size.x, horizontalLerp);
-            var y = Mathf.Lerp(-size.y, size.y, verticalLerp);
-
-            vertices[i] = new Vector3(x, 0, y);
-            normals[i] = Vector3.up;
-            uvs[i] = new Vector2(lerpValue, 0);
-
-            if (true)
-            {
-                vertices[vertices.Length - i - 1] = new Vector3(-x, 0, y);
-                normals[normals.Length - i - 1] = Vector3.up;
-                uvs[uvs.Length - i - 1] = new Vector2(lerpValue, 1);
-            }
-        }
-
-        var mesh = new Mesh();
-        mesh.vertices = vertices;
-        mesh.normals = normals;
-        mesh.uv = uvs;
-        mesh.triangles = EarClipping(vertices.Select(v => new Vector2(v.x, v.z)).ToArray());
+        propertyBlock = new MaterialPropertyBlock();
+        propertyBlock.SetTexture(alphaCutKey, texture);
 
         return mesh;
+    }
+
+    public static Vector2[] GetLeafFromCurve(CurveLeafDna dna)
+    {
+        List<Vector2> vertices = new();
+
+        for (int i = 0; i <= dna.segmentations; i++)
+        {
+            var lerpValue = i / (float)dna.segmentations;
+            var horizontalLerp = dna.horizontalCurve.Evaluate(lerpValue);
+            var verticalLerp = dna.verticalCurve.Evaluate(lerpValue);
+
+            var x = Mathf.Lerp(0.5f, 0, horizontalLerp);
+            var y = Mathf.Lerp(0, 1, verticalLerp);
+
+            vertices.Add(new Vector2(x, y));
+        }
+
+        MirrorVertices(vertices);
+
+        return vertices.ToArray();
     }
 
     public static void GetLeavesQuads(Vector3[] positions, Vector3[] eulers, out Vector3[] vertices, out int[] triangles, out Vector2[] uvs)
@@ -688,31 +709,61 @@ public static class LeafGeometry
 
     public static Vector2[] GetSegmentedLeaf(SegmentedLeafDNA dna)
     {
+        Vector3 center = new Vector3(0.5f, 0, 0.5f);
         List<Vector3> vertices = new List<Vector3>
     {
         //Petiole
-        new Vector3(-dna.Petiole.x * 0.5f, 0, 0),
-        new Vector3(-dna.Petiole.x* 0.5f, 0, dna.Petiole.y)
+        new Vector3(-dna.Petiole.x * 0.5f + 0.5f, 0, 0),
+        new Vector3(-dna.Petiole.x * 0.5f + 0.5f, 0, dna.Petiole.y)
     };
 
         var height = dna.Petiole.y + dna.firstBlade.firstSectionWidth * 0.5f;
         LContext context = new LContext();
-        context.position = new Vector3(-dna.Petiole.x * 0.5f - dna.midribWidth * 0.5f, 0, height);
+        context.position = new Vector3(-dna.Petiole.x * 0.5f - dna.midribWidth * 0.5f + 0.5f, 0, height);
         context.rotation = Quaternion.Euler(0, -90 + dna.firstBlade.angle, 0);
 
-        vertices.AddRange(GetTip(context, dna.firstBlade, dna.firstBlade.firstSectionWidth));
+        vertices.AddRange(GetTip(context, dna.firstBlade));
 
         height += dna.secondBlade.firstSectionWidth * 0.5f + dna.firstBlade.firstSectionWidth * 0.5f;
-        context.position = new Vector3(-dna.Petiole.x * 0.5f - dna.midribWidth * 0.5f, 0, height);
+        context.position = new Vector3(-dna.Petiole.x * 0.5f - dna.midribWidth * 0.5f + 0.5f, 0, height);
         context.rotation = Quaternion.Euler(0, -90 + dna.secondBlade.angle, 0);
-        vertices.AddRange(GetTip(context, dna.secondBlade, dna.secondBlade.firstSectionWidth));
+        vertices.AddRange(GetTip(context, dna.secondBlade));
 
         height += dna.thirdBlade.firstSectionWidth * 0.5f + dna.secondBlade.firstSectionWidth;
-        context.position = new Vector3(-dna.Petiole.x * 0.5f - dna.midribWidth * 0.5f, 0, height);
+        context.position = new Vector3(-dna.Petiole.x * 0.5f - dna.midribWidth * 0.5f + 0.5f, 0, height);
         context.rotation = Quaternion.Euler(0, -90 + dna.thirdBlade.angle, 0);
-        vertices.AddRange(GetTip(context, dna.thirdBlade, dna.thirdBlade.firstSectionWidth));
+        vertices.AddRange(GetTip(context, dna.thirdBlade));
 
         var vertices2D = vertices.Select(v => new Vector2(v.x, v.z)).ToList();
+
+        var minX = vertices2D.Min(v => v.x);
+        var maxX = vertices2D.Max(v => v.x);
+
+        var maxY = vertices2D.Max(v => v.y);
+        var minY = vertices2D.Min(v => v.y);
+
+        Vector2 scale = Vector2.one;
+        bool adjustScale = false;
+        if (maxX - minX > 1)
+        {
+            scale.x = 1 / (maxX - minX);
+            adjustScale = true;
+        }
+
+        if (maxY - minY > 1)
+        {
+            adjustScale = true;
+            scale.y = 1 / (maxY - minY);
+        }
+
+        if (adjustScale)
+        {
+            for (int i = 0; i < vertices2D.Count; i++)
+            {
+                vertices2D[i] = new Vector2(vertices2D[i].x * scale.x, vertices2D[i].y * scale.y);
+            }
+        }
+
         MirrorVertices(vertices2D);
         var outVertices = SmoothPolygon(vertices2D, dna.Smooth);
 
@@ -743,13 +794,7 @@ public static class LeafGeometry
 
     public static Vector2[] NormalizePointsToUV(Vector2[] points)
     {
-        var startingMinX = points.Min(p => p.x);
-        var startingMinY = points.Min(p => p.y);
-        for (int i = 0; i < points.Length; i++)
-        {
-            points[i] += new Vector2(startingMinX, startingMinY);
-        }
-
+        //Center the polygon
         Vector2 center = Vector2.zero;
         for (int i = 0; i < points.Length; i++)
         {
@@ -773,32 +818,35 @@ public static class LeafGeometry
             points[i] -= diff;
         }
 
-        var boundMaxX = points.Max(p => p.x);
-        var boundMaxY = points.Max(p => p.y);
-        var boundMinX = points.Min(p => p.x);
-        var boundMinY = points.Min(p => p.y);
+        //var boundMaxX = points.Max(p => p.x);
+        //var boundMaxY = points.Max(p => p.y);
+        //var boundMinX = points.Min(p => p.x);
+        //var boundMinY = points.Min(p => p.y);
 
-        float xSize = boundMaxX - boundMinX;
-        float ySize = boundMaxY - boundMinY;
+        //float xSize = boundMaxX - boundMinX;
+        //float ySize = boundMaxY - boundMinY;
 
-        for (int i = 0; i < points.Length; ++i)
-        {
-            points[i].x /= xSize;
-            points[i].y /= ySize;
-        }
+        //for (int i = 0; i < points.Length; ++i)
+        //{
+        //    points[i].x /= xSize;
+        //    points[i].y /= ySize;
+        //}
 
         return points;
     }
 
     public static Texture2D GetComplexTexture(Vector2[] polygon, Vector2[] points, float[] angles, Vector2 petiole, float leafSize, int maxTextureSize = 1024)
     {
-        polygon = NormalizePointsToUV(polygon);
+        var maxXPolygon = polygon.Max(p => p.x);
+        var minXPolygon = polygon.Min(p => p.x);
+        int polygonWidth = Mathf.RoundToInt(leafSize * maxTextureSize);
 
         for (int i = 0; i < points.Length; i++)
         {
             points[i].x = points[i].x * maxTextureSize + maxTextureSize / 2;
             points[i].y *= maxTextureSize;
         }
+
         Vector2[] rotatedPolygon = new Vector2[polygon.Length];
         List<List<Vector2Int>> individualLeaves = new();
 
@@ -811,7 +859,7 @@ public static class LeafGeometry
             var newLeaf = new List<Vector2Int>();
             for (int j = 0; j < polygon.Length; j++)
             {
-                Vector2 newPoint = rotation * polygon[j] * leafSize * maxTextureSize;
+                Vector2 newPoint = rotation * (polygon[j] * leafSize * maxTextureSize + new Vector2(-polygonWidth / 2, 0));
                 newPoint += points[i];
                 newPoint.x = Mathf.Clamp(newPoint.x, 0, maxTextureSize);
                 newPoint.y = Mathf.Clamp(newPoint.y, 0, maxTextureSize);
@@ -856,7 +904,28 @@ public static class LeafGeometry
             }
         }
 
-        int outCount = 0;
+        float maxX = individualLeaves.Max(l => l.Max(p => p.x));
+        float maxY = individualLeaves.Max(l => l.Max(p => p.y));
+
+        float minX = individualLeaves.Min(l => l.Min(p => p.x));
+        float minY = individualLeaves.Min(l => l.Min(p => p.y));
+
+        float sizeX = maxX - minX;
+        float sizeY = maxY - minY;
+
+        Vector2 scale = Vector2.one;
+        if (sizeX > maxTextureSize) scale.x = maxTextureSize / sizeX;
+        if (sizeY > maxTextureSize) scale.y = maxTextureSize / sizeY;
+
+        foreach (var leaf in individualLeaves)
+        {
+            for (int i = 0; i < points.Length; i++)
+            {
+                points[i].x *= scale.x;
+                points[i].y *= scale.y;
+            }
+        }
+
         foreach (var leaf in individualLeaves)
         {
             List<Vector2> intersections = new();
@@ -891,8 +960,6 @@ public static class LeafGeometry
                         while (pixel < intersection.x)
                         {
                             finalTexture.SetPixel(pixel, i, inside);
-                            outCount++;
-
                             pixel++;
                         }
                     }
@@ -901,7 +968,6 @@ public static class LeafGeometry
                 }
             }
         }
-        Debug.Log("Out Count: " + outCount.ToString());
         finalTexture.Apply();
 
         return finalTexture;
@@ -911,11 +977,10 @@ public static class LeafGeometry
 
     public static Texture2D GetTexture(Vector2[] points, int textureSize = DefaultTextureSize)
     {
-        points = NormalizePointsToUV(points);
         var snappedPoints = new List<Vector2Int>();
         for (int i = 0; i < points.Length; i++)
         {
-            points[i].x = points[i].x * textureSize + textureSize / 2;
+            points[i].x = points[i].x * textureSize;
             points[i].y *= textureSize;
 
             points[i].x = Mathf.Clamp(points[i].x, 0, textureSize);
@@ -927,10 +992,17 @@ public static class LeafGeometry
                 Mathf.RoundToInt(points[i].y)));
         }
 
-        Texture2D texture = new Texture2D(textureSize, textureSize);
+        Color32 inside = new Color32(255, 255, 255, 255);
+        Color32 outside = new Color32(0, 0, 0, 0);
 
-        int insideCount = 0;
-        int outsideCount = 0;
+        Texture2D texture = new Texture2D(textureSize, textureSize);
+        for (int i = 0; i < textureSize; i++)
+        {
+            for (int j = 0; j < textureSize; j++)
+            {
+                texture.SetPixel(i, j, outside);
+            }
+        }
 
         List<Vector2> intersections = new();
         for (int i = 0; i < textureSize; i++)
@@ -956,44 +1028,23 @@ public static class LeafGeometry
             int pixel = 0;
 
             intersections = intersections.OrderBy(i => i.x).ToList();
-            Color32 inside = new Color32(255, 255, 255, 255);
-            Color32 outside = new Color32(0, 0, 0, 0);
             while (intersections.Count != 0)
             {
                 var intersection = intersections.First();
                 intersections.RemoveAt(0);
 
-                bool isInside = intersections.Count % 2 == 0;
-
-                while (pixel < intersection.x)
+                if (intersections.Count % 2 == 0)
                 {
-                    if (isInside)
+                    while (pixel < intersection.x)
                     {
                         texture.SetPixel(pixel, i, inside);
-                        insideCount++;
+                        pixel++;
                     }
-                    else
-                    {
-                        texture.SetPixel(pixel, i, outside);
-                        outsideCount++;
-                    }
-                    pixel++;
                 }
-            }
 
-            while (pixel < textureSize)
-            {
-                texture.SetPixel(pixel, i, outside);
-                outsideCount++;
-                pixel++;
+                pixel = Mathf.RoundToInt(intersection.x);
             }
         }
-
-        //Debug.Log("Inside: " + insideCount + " Outside: " + outsideCount);
-
-        var diff = textureSize * textureSize - insideCount - outsideCount;
-        if (diff != 0)
-            Debug.LogWarning("Oppsie, no encajan los pixeles por " + (-diff));
 
         texture.Apply();
         return texture;

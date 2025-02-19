@@ -6,7 +6,7 @@ public class ComplexTest : MonoBehaviour
     private MeshFilter MeshFilter => GetComponent<MeshFilter>();
 
     private float elapsedTime;
-    private int framesPerSecond = 3;
+    [Range(1, 10)][SerializeField] private int framesPerSecond = 3;
 
     public SegmentedLeafTest test;
     public ComplexLeafDNA dna;

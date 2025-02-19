@@ -32,7 +32,6 @@ public struct SegmentedLeafDNA : ILeafDNA
     public struct LeafBlade
     {
         [Range(0, 1)] public float firstSectionWidth;
-        [Range(0, 1)] public float firstSectionHeight;
 
         [Range(0, 1)] public float secondSectionWidth;
         [Range(0, 1)] public float secondSectionHeight;
@@ -40,7 +39,10 @@ public struct SegmentedLeafDNA : ILeafDNA
         [Range(0, 1)] public float thirdSectionWidth;
         [Range(0, 1)] public float thirdSectionHeight;
 
-        [Range(-45, 45)] public float angle;
+        [Range(0, 1)] public float fourthSectionWidth;
+        [Range(0, 1)] public float fourthSectionHeight;
+
+        [Range(-60, 60)] public float angle;
     }
 
     public Vector2[] GetPolygon()
